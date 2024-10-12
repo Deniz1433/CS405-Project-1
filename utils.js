@@ -185,7 +185,7 @@ function getModelViewMatrix() {
     modelViewMatrix = multiplyMatrices(modelViewMatrix, translationMatrix);  // Apply translation first
     modelViewMatrix = multiplyMatrices(modelViewMatrix, scaleMatrix);        // Apply scaling next
     modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixX);    // Apply rotation around X-axis
-    modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixY);    // Apply rotation around Y-axis
+	modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixY);    // Apply rotation around Y-axis
     modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixZ);    // Apply rotation around Z-axis
 
     return new Float32Array(modelViewMatrix); // Return the final modelView matrix
@@ -200,47 +200,26 @@ function getModelViewMatrix() {
  * The next 5 seconds, the cube should return to its initial position.
  */
 function getPeriodicMovement(startTime) {
-    // this metdo should return the model view matrix at the given time
-    // to get a smooth animation
-	const currentTime = performance.now();
-    const elapsedTime = (currentTime - startTime) / 1000; // in seconds
-    const period = 10; // Total period is 10 seconds
-    const halfPeriod = period / 2; // 5 seconds each way
-    
-    // Calculate time within current period (0 to 10 seconds)
-    const timeInPeriod = elapsedTime % period;
+    const currentTime = performance.now();
+	const elapsedTime = (currentTime - startTime) / 1000; // in seconds
+	const period = 10; // Total period is 10 seconds
 
-    // Determine the interpolation factor
-    let t;
-    if (timeInPeriod <= halfPeriod) {
-        // First half (0 to 5 seconds): interpolate from 0 to 1
-        t = timeInPeriod / halfPeriod;
-    } else {
-        // Second half (5 to 10 seconds): interpolate from 1 to 0
-        t = (period - timeInPeriod) / halfPeriod;
-    }
+	// Calculate time within current period (0 to 10 seconds)
+	const timeInPeriod = elapsedTime % period;
 
-    // Smooth interpolation using a sine curve for easing in and out
-    const smoothT = Math.sin((t * Math.PI) / 2);
+	// Calculate oscillator to oscillate between 0 and 1 with a period of 10
+	const oscillator = 0.5 * Math.sin((Math.PI / 5) * timeInPeriod) + 0.5;
 
-    // Step 1: Create the translation matrix (lerping between 0 and target)
-    const translationMatrix = createTranslationMatrix(
-        smoothT * 0.3, // Interpolate X-axis
-        smoothT * -0.25, // Interpolate Y-axis
-        0.0
-    );
+    // Step 1: Create the translation matrix (translation scales from 0 to 0.3 on x, and 0 to -0.25 on y)
+    const translationMatrix = createTranslationMatrix(oscillator * 0.3, oscillator * -0.25, 0.0);
 
-    // Step 2: Create the scaling matrix (interpolate scaling)
-    const scaleMatrix = createScaleMatrix(
-        1 + smoothT * (0.5 - 1), // Scaling in X-axis
-        1 + smoothT * (0.5 - 1), // Scaling in Y-axis
-        1.0
-    );
+    // Step 2: Create the scaling matrix (scale values oscillate between 0 and 0.5 for both x and y)
+    const scaleMatrix = createScaleMatrix(1 - (1/2*oscillator), 1 - (1/2*oscillator), 1.0);
 
-    // Step 3: Create the rotation matrices
-    const radianX = smoothT * (30 * Math.PI) / 180; // Interpolated X rotation
-    const radianY = smoothT * (45 * Math.PI) / 180; // Interpolated Y rotation
-    const radianZ = smoothT * (60 * Math.PI) / 180; // Interpolated Z rotation
+    // Step 3: Create the rotation matrices (rotation angles oscillate with oscillator)
+    const radianX = oscillator * (30 * Math.PI) / 180; // 30 degrees to radians scaled by oscillator
+    const radianY = oscillator * (45 * Math.PI) / 180; // 45 degrees to radians scaled by oscillator
+    const radianZ = oscillator * (60 * Math.PI) / 180; // 60 degrees to radians scaled by oscillator
 
     const rotationMatrixX = createRotationMatrix_X(radianX);
     const rotationMatrixY = createRotationMatrix_Y(radianY);
@@ -248,15 +227,18 @@ function getPeriodicMovement(startTime) {
 
     // Step 4: Multiply matrices in the order:
     // Translation -> Scaling -> RotationX -> RotationY -> RotationZ
-    let modelViewMatrix = createIdentityMatrix(); // Start with identity
-    modelViewMatrix = multiplyMatrices(modelViewMatrix, translationMatrix);  // Apply translation
-    modelViewMatrix = multiplyMatrices(modelViewMatrix, scaleMatrix);        // Apply scaling
-    modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixX);    // Apply X rotation
-    modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixY);    // Apply Y rotation
-    modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixZ);    // Apply Z rotation
+    let modelViewMatrix = createIdentityMatrix();  // Start with the identity matrix
+    modelViewMatrix = multiplyMatrices(modelViewMatrix, translationMatrix);  // Apply translation first
+    modelViewMatrix = multiplyMatrices(modelViewMatrix, scaleMatrix);        // Apply scaling next
+    modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixX);    // Apply rotation around X-axis
+    modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixY);    // Apply rotation around Y-axis
+    modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixZ);    // Apply rotation around Z-axis
 
-    return new Float32Array(modelViewMatrix); // Return the calculated matrix
+    return new Float32Array(modelViewMatrix);  // Return the final modelView matrix
 }
+
+
+
 
 
 
