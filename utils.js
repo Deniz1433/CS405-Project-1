@@ -145,12 +145,11 @@ void main() {
 
 function getChatGPTModelViewMatrix() {
     const transformationMatrix = new Float32Array([
-        // you should paste the response of the chatGPT here:
-		0.1767767, -0.3061862, 0.3535534, 0.3,
-		0.3061862, 0.4267767, -0.1767767, -0.25,
-		-0.3535534, 0.1767767, 0.4267767, 0,
-		0, 0, 0, 1
-    ]);
+	  0.17677669, -0.3061862, 0.4330127, 0.3,
+	  0.38388348,  0.3061862, -0.25,    -0.25,
+	 -0.35355338,  0.4330127,  0.6123724,  0,
+	  0,           0,          0,         1
+	]);
     return getTransposeMatrix(transformationMatrix);
 }
 
@@ -162,33 +161,26 @@ function getChatGPTModelViewMatrix() {
  * stated in transformation-prompt.txt
  */
 function getModelViewMatrix() {
-    // calculate the model view matrix by using the transformation
-    // methods and return the modelView matrix in this method
-	// Step 1: Create the translation matrix (translate by 0.3 on x-axis, -0.25 on y-axis)
-    const translationMatrix = createTranslationMatrix(0.3, -0.25, 0.0);
+    // Create the translation matrix
+    const translationMatrix = createTranslationMatrix(0.3, -0.25, 0);
 
-    // Step 2: Create the scaling matrix (scaling by 0.5 on x-axis and y-axis)
-    const scaleMatrix = createScaleMatrix(0.5, 0.5, 1.0);
+    // Create the scaling matrix
+    const scaleMatrix = createScaleMatrix(0.5, 0.5, 1);
 
-    // Step 3: Create the rotation matrices (convert degrees to radians first)
-    const radianX = (30 * Math.PI) / 180; // 30 degrees to radians
-    const radianY = (45 * Math.PI) / 180; // 45 degrees to radians
-    const radianZ = (60 * Math.PI) / 180; // 60 degrees to radians
+    // Create the rotation matrices for X, Y, and Z
+    const rotationMatrixX = createRotationMatrix_X(30 * Math.PI / 180); // Convert degrees to radians
+    const rotationMatrixY = createRotationMatrix_Y(45 * Math.PI / 180);
+    const rotationMatrixZ = createRotationMatrix_Z(60 * Math.PI / 180);
 
-    const rotationMatrixX = createRotationMatrix_X(radianX);
-    const rotationMatrixY = createRotationMatrix_Y(radianY);
-    const rotationMatrixZ = createRotationMatrix_Z(radianZ);
+    // Combine the matrices in the order: T * Rz * Ry * Rx * S
+    let modelViewMatrix = createIdentityMatrix();
+    modelViewMatrix = multiplyMatrices(modelViewMatrix, translationMatrix); // Apply translation
+    modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixZ);    // Apply rotation Z
+    modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixY);    // Apply rotation Y
+    modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixX);    // Apply rotation X
+    modelViewMatrix = multiplyMatrices(modelViewMatrix, scaleMatrix);        // Apply scaling
 
-    // Step 4: Multiply matrices in the order:
-    // Translation -> Scaling -> RotationX -> RotationY -> RotationZ
-    let modelViewMatrix = createIdentityMatrix(); // Start with the identity matrix
-    modelViewMatrix = multiplyMatrices(modelViewMatrix, translationMatrix);  // Apply translation first
-    modelViewMatrix = multiplyMatrices(modelViewMatrix, scaleMatrix);        // Apply scaling next
-    modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixX);    // Apply rotation around X-axis
-	modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixY);    // Apply rotation around Y-axis
-    modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixZ);    // Apply rotation around Z-axis
-
-    return new Float32Array(modelViewMatrix); // Return the final modelView matrix
+    return new Float32Array(modelViewMatrix);
 }
 
 /**
@@ -200,43 +192,46 @@ function getModelViewMatrix() {
  * The next 5 seconds, the cube should return to its initial position.
  */
 function getPeriodicMovement(startTime) {
-    const currentTime = performance.now();
-	const elapsedTime = (currentTime - startTime) / 1000; // in seconds
-	const period = 10; // Total period is 10 seconds
-
-	// Calculate time within current period (0 to 10 seconds)
-	const timeInPeriod = elapsedTime % period;
-
-	// Calculate oscillator to oscillate between 0 and 1 with a period of 10
-	const oscillator = 0.5 * Math.sin((Math.PI / 5) * timeInPeriod) + 0.5;
-
-    // Step 1: Create the translation matrix (translation scales from 0 to 0.3 on x, and 0 to -0.25 on y)
-    const translationMatrix = createTranslationMatrix(oscillator * 0.3, oscillator * -0.25, 0.0);
-
-    // Step 2: Create the scaling matrix (scale values oscillate between 0 and 0.5 for both x and y)
-    const scaleMatrix = createScaleMatrix(1 - (1/2*oscillator), 1 - (1/2*oscillator), 1.0);
-
-    // Step 3: Create the rotation matrices (rotation angles oscillate with oscillator)
-    const radianX = oscillator * (30 * Math.PI) / 180; // 30 degrees to radians scaled by oscillator
-    const radianY = oscillator * (45 * Math.PI) / 180; // 45 degrees to radians scaled by oscillator
-    const radianZ = oscillator * (60 * Math.PI) / 180; // 60 degrees to radians scaled by oscillator
-
-    const rotationMatrixX = createRotationMatrix_X(radianX);
-    const rotationMatrixY = createRotationMatrix_Y(radianY);
-    const rotationMatrixZ = createRotationMatrix_Z(radianZ);
-
-    // Step 4: Multiply matrices in the order:
-    // Translation -> Scaling -> RotationX -> RotationY -> RotationZ
-    let modelViewMatrix = createIdentityMatrix();  // Start with the identity matrix
-    modelViewMatrix = multiplyMatrices(modelViewMatrix, translationMatrix);  // Apply translation first
-    modelViewMatrix = multiplyMatrices(modelViewMatrix, scaleMatrix);        // Apply scaling next
-    modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixX);    // Apply rotation around X-axis
-    modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixY);    // Apply rotation around Y-axis
-    modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixZ);    // Apply rotation around Z-axis
-
-    return new Float32Array(modelViewMatrix);  // Return the final modelView matrix
+	
+	function interpolate(startValue, endValue, factor) {
+    return startValue + (endValue - startValue) * factor;
 }
+    const time = (performance.now() / 1000 - startTime) % 10;  // Time in seconds, mod 10 for periodic movement
+    const normalizedTime = time / 10; // Normalize time to [0, 1] over a 10-second period
 
+    // Calculate the interpolation factor using a sine function for smooth back-and-forth motion
+    const sineFactor = 0.5 * (1 - Math.cos(normalizedTime * 2 * Math.PI)); // Oscillates between 0 and 1
+
+    // Interpolated translation
+    const translationX = interpolate(0, 0.3, sineFactor);
+    const translationY = interpolate(0, -0.25, sineFactor);
+
+    // Interpolated scaling
+    const scaleX = interpolate(1, 0.5, sineFactor);
+    const scaleY = interpolate(1, 0.5, sineFactor);
+
+    // Interpolated rotations
+    const rotationX = interpolate(0, 30 * Math.PI / 180, sineFactor); // Rotation around X axis
+    const rotationY = interpolate(0, 45 * Math.PI / 180, sineFactor); // Rotation around Y axis
+    const rotationZ = interpolate(0, 60 * Math.PI / 180, sineFactor); // Rotation around Z axis
+
+    // Create the transformation matrices for the current state
+    const translationMatrix = createTranslationMatrix(translationX, translationY, 0);
+    const scaleMatrix = createScaleMatrix(scaleX, scaleY, 1);
+    const rotationMatrixX = createRotationMatrix_X(rotationX);
+    const rotationMatrixY = createRotationMatrix_Y(rotationY);
+    const rotationMatrixZ = createRotationMatrix_Z(rotationZ);
+
+    // Combine the transformations: T * Rz * Ry * Rx * S
+    let modelViewMatrix = createIdentityMatrix();
+    modelViewMatrix = multiplyMatrices(modelViewMatrix, translationMatrix);  // Apply translation
+    modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixZ);    // Apply rotation Z
+    modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixY);    // Apply rotation Y
+    modelViewMatrix = multiplyMatrices(modelViewMatrix, rotationMatrixX);    // Apply rotation X
+    modelViewMatrix = multiplyMatrices(modelViewMatrix, scaleMatrix);        // Apply scaling
+
+    return new Float32Array(modelViewMatrix);
+}
 
 
 
